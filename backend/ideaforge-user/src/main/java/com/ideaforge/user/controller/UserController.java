@@ -6,21 +6,17 @@ import com.ideaforge.user.dto.*;
 import com.ideaforge.user.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 用户接口。对应 API 文档 /api/v1/users。
- * 登录/注册/验证码已通过 SaTokenConfig 白名单放行,其余需登录。
- */
 @Validated
 @RestController
 @RequestMapping("/api/v1/users")
-@RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+    @Autowired
+    private UserService userService;
 
     @PostMapping("/send-code")
     public Result<?> sendCode(@RequestParam @NotBlank String phone) {

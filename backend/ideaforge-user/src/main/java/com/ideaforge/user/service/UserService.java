@@ -8,38 +8,33 @@ import com.ideaforge.common.util.PasswordEncoder;
 import com.ideaforge.user.dto.*;
 import com.ideaforge.user.entity.User;
 import com.ideaforge.user.mapper.UserMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 
-/**
- * 用户服务。含注册、登录(手机号+密码)、资料维护。
- * 验证码当前以 Redis 存储演示(dev 固定 123456),生产应接入短信网关。
- */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
-    private final UserMapper userMapper;
-    private final StringRedisTemplate redisTemplate;
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     private static final String CODE_KEY = "user:code:";
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
 
-    /** 发送验证码 */
     public void sendCode(String phone) {
-        // TODO: 接入真实短信网关。dev 环境固定返回 123456。
         String code = "123456";
         redisTemplate.opsForValue().set(CODE_KEY + phone, code, CODE_TTL);
         log.info("验证码已发送: phone={}, code={}", phone, code);
     }
 
-    /** 手机号注册 */
     @Transactional
     public LoginResult register(RegisterReq req) {
         Long existCount = userMapper.selectCount(
@@ -59,7 +54,6 @@ public class UserService {
         return doLogin(user);
     }
 
-    /** 手机号+密码登录 */
     public LoginResult loginByPhone(PhoneLoginReq req) {
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, req.getPhone()));
@@ -75,7 +69,6 @@ public class UserService {
         return doLogin(user);
     }
 
-    /** 获取当前用户资料 */
     public UserProfileResp getProfile(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
@@ -84,7 +77,6 @@ public class UserService {
         return toResp(user);
     }
 
-    /** 修改当前用户资料 */
     @Transactional
     public UserProfileResp updateProfile(Long userId, UpdateProfileReq req) {
         User user = userMapper.selectById(userId);
@@ -97,12 +89,9 @@ public class UserService {
         return toResp(user);
     }
 
-    /** 退出登录 */
     public void logout() {
         StpUtil.logout();
     }
-
-    // ===== 内部方法 =====
 
     private void verifyCode(String phone, String code) {
         String cached = redisTemplate.opsForValue().get(CODE_KEY + phone);

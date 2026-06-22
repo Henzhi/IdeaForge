@@ -7,33 +7,32 @@ import com.ideaforge.idea.entity.IdeaTag;
 import com.ideaforge.idea.entity.Tag;
 import com.ideaforge.idea.mapper.IdeaTagMapper;
 import com.ideaforge.idea.mapper.TagMapper;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class TagService {
 
-    private final TagMapper tagMapper;
-    private final IdeaTagMapper ideaTagMapper;
+    @Autowired
+    private TagMapper tagMapper;
 
-    /** 获取用户所有标签 */
+    @Autowired
+    private IdeaTagMapper ideaTagMapper;
+
     public List<Tag> list(Long userId) {
         return tagMapper.selectList(new LambdaQueryWrapper<Tag>()
                 .eq(Tag::getUserId, userId).orderByAsc(Tag::getCreatedAt));
     }
 
-    /** 获取某个想法已绑定的标签ID列表 */
     public List<Long> getTagIdsByIdeaId(Long ideaId) {
         return ideaTagMapper.selectList(new LambdaQueryWrapper<IdeaTag>()
                 .eq(IdeaTag::getIdeaId, ideaId))
                 .stream().map(IdeaTag::getTagId).toList();
     }
 
-    /** 创建标签(同用户下不重名) */
     @Transactional
     public Tag create(Long userId, String name, String color) {
         Long count = tagMapper.selectCount(new LambdaQueryWrapper<Tag>()
@@ -47,7 +46,6 @@ public class TagService {
         return tag;
     }
 
-    /** 更新标签 */
     @Transactional
     public Tag update(Long userId, Long id, String name, String color) {
         Tag tag = getOwned(userId, id);
@@ -57,7 +55,6 @@ public class TagService {
         return tag;
     }
 
-    /** 删除标签(并清除关联) */
     @Transactional
     public void delete(Long userId, Long id) {
         getOwned(userId, id);

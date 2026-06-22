@@ -9,8 +9,8 @@ import com.ideaforge.common.exception.BizException;
 import com.ideaforge.idea.dto.*;
 import com.ideaforge.idea.entity.Idea;
 import com.ideaforge.idea.mapper.IdeaMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,20 +19,18 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 想法服务。含 CRUD、批量同步(幂等 + Last-Write-Wins 冲突处理)。
- * 同步逻辑遵循 补充.md 第 5.3 节:clientUuid 为幂等键,updatedAt 为冲突判定。
- */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class IdeaService {
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_DATE_TIME;
 
-    private final IdeaMapper ideaMapper;
+    @Autowired
+    private IdeaMapper ideaMapper;
 
-    /** 创建单条想法 */
+    @Autowired
+    private EmbeddingService embeddingService;
+
     @Transactional
     public IdeaResp create(Long userId, String content, Short categoryId, String clientUuid) {
         Idea idea = new Idea();
@@ -44,7 +42,6 @@ public class IdeaService {
         return toResp(idea);
     }
 
-    /** 游标分页查询 */
     @Transactional(readOnly = true)
     public PageResponse<IdeaResp> list(Long userId, String cursor, int limit, Short categoryId, Boolean archived) {
         LocalDateTime cursorTime = parseCursor(cursor);
@@ -64,7 +61,6 @@ public class IdeaService {
         return new PageResponse<>(items.stream().map(this::toResp).toList(), nextCursor, hasMore);
     }
 
-    /** 批量同步(核心) */
     @Transactional
     public SyncResult sync(Long userId, SyncReq req) {
         List<IdeaResp> synced = new ArrayList<>();
@@ -81,20 +77,15 @@ public class IdeaService {
                     idea.setUserId(userId);
                     idea.setClientUuid(item.getClientUuid());
                 }
-
-                // Last-Write-Wins: 服务端时间更新者优先
                 if (idea.getId() != null && idea.getUpdatedAt() != null
                         && item.getUpdatedAt() != null
                         && item.getUpdatedAt().isBefore(idea.getUpdatedAt())) {
                     conflicts.add(item.getClientUuid());
                     continue;
                 }
-
                 idea.setContent(item.getContent());
                 idea.setCategoryId(item.getCategoryId());
-                if (item.getUpdatedAt() != null) {
-                    idea.setUpdatedAt(item.getUpdatedAt());
-                }
+                if (item.getUpdatedAt() != null) idea.setUpdatedAt(item.getUpdatedAt());
                 if (idea.getId() == null) {
                     ideaMapper.insert(idea);
                 } else {
@@ -103,7 +94,6 @@ public class IdeaService {
                 synced.add(toResp(idea));
             }
         }
-
         if (req.getDeletes() != null) {
             for (String clientUuid : req.getDeletes()) {
                 ideaMapper.update(null, new LambdaUpdateWrapper<Idea>()
@@ -116,13 +106,11 @@ public class IdeaService {
         return new SyncResult(synced, conflicts);
     }
 
-    /** 获取详情 */
     @Transactional(readOnly = true)
     public IdeaResp get(Long userId, Long id) {
         return toResp(getOwned(userId, id));
     }
 
-    /** 更新 */
     @Transactional
     public IdeaResp update(Long userId, Long id, String content, Short categoryId) {
         Idea idea = getOwned(userId, id);
@@ -132,7 +120,6 @@ public class IdeaService {
         return toResp(idea);
     }
 
-    /** 归档/置顶切换 */
     @Transactional
     public void toggle(Long userId, Long id, String field, boolean value) {
         Idea idea = getOwned(userId, id);
@@ -141,7 +128,6 @@ public class IdeaService {
         ideaMapper.updateById(idea);
     }
 
-    /** 软删除 */
     @Transactional
     public void delete(Long userId, Long id) {
         Idea idea = getOwned(userId, id);
@@ -149,9 +135,6 @@ public class IdeaService {
         ideaMapper.updateById(idea);
     }
 
-    // ===== 搜索 =====
-
-    /** 全文搜索(PostgreSQL tsvector)。使用中文分词器 plainto_tsquery。 */
     @Transactional(readOnly = true)
     public List<IdeaResp> search(Long userId, String keyword, int limit) {
         List<Idea> ideas = ideaMapper.selectList(new LambdaQueryWrapper<Idea>()
@@ -163,27 +146,66 @@ public class IdeaService {
         return ideas.stream().map(this::toResp).toList();
     }
 
-    /**
-     * 语义搜索(pgvector 余弦距离)。
-     * 前置条件:embedding 字段已由 AI 服务生成(调用 /ideas/{id}/embed 或批量生成)。
-     */
     @Transactional(readOnly = true)
     public List<IdeaResp> semanticSearch(Long userId, String query, int limit) {
-        // 调用 Mapper 中自定义 SQL,用 pgvector <=> 余弦距离排序
-        List<Idea> ideas = ideaMapper.semanticSearch(userId, query, limit);
-        return ideas.stream().map(this::toResp).toList();
+        String queryVectorStr = embeddingService.embedSingle(query);
+        float[] queryVec = parseVector(queryVectorStr);
+        List<Idea> ideas = ideaMapper.findAllWithEmbedding(userId);
+        log.info("语义搜索: query={}, embeddingCount={}, queryVecDim={}", query, ideas.size(), queryVec.length);
+
+        return ideas.stream()
+                .map(i -> {
+                    String embStr = i.getEmbedding();
+                    if (embStr == null || embStr.length() < 10) {
+                        log.warn("  idea id={} embedding 为空/过短", i.getId());
+                        return new IdeaScore(i, Double.NEGATIVE_INFINITY);
+                    }
+                    float[] emb = parseVector(embStr);
+                    double score = cosineSimilarity(emb, queryVec);
+                    return new IdeaScore(i, score);
+                })
+                .sorted((a, b) -> Double.compare(b.score, a.score))
+                .limit(limit)
+                .peek(s -> log.info("  idea id={} score={}", s.idea.getId(), String.format("%.6f", s.score)))
+                .map(s -> toResp(s.idea))
+                .toList();
     }
 
-    // ===== 内部方法 =====
+    @Transactional
+    public int generateEmbeddings(Long userId) {
+        return embeddingService.generateAll(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public int debugEmbeddings(Long userId) {
+        return ideaMapper.findAllWithEmbedding(userId).size();
+    }
+
+    private record IdeaScore(Idea idea, double score) {}
+
+    private float[] parseVector(String vec) {
+        String[] parts = vec.substring(1, vec.length() - 1).split(",");
+        float[] arr = new float[parts.length];
+        for (int i = 0; i < parts.length; i++) arr[i] = Float.parseFloat(parts[i]);
+        return arr;
+    }
+
+    private double cosineSimilarity(float[] a, float[] b) {
+        if (a.length != b.length) return 0;
+        double dot = 0, normA = 0, normB = 0;
+        for (int i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            normA += a[i] * a[i];
+            normB += b[i] * b[i];
+        }
+        return normA == 0 || normB == 0 ? 0 : dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
 
     private Idea getOwned(Long userId, Long id) {
         Idea idea = ideaMapper.selectById(id);
-        if (idea == null) {
-            throw new BizException(ErrorCode.IDEA_NOT_FOUND);
-        }
-        if (!idea.getUserId().equals(userId) || idea.getDeletedAt() != null) {
+        if (idea == null) throw new BizException(ErrorCode.IDEA_NOT_FOUND);
+        if (!idea.getUserId().equals(userId) || idea.getDeletedAt() != null)
             throw new BizException(ErrorCode.IDEA_PERMISSION_DENIED);
-        }
         return idea;
     }
 

@@ -88,10 +88,15 @@ app:
   llm:
     api-key: ${LLM_API_KEY:}
     base-url: ${LLM_BASE_URL:https://api.deepseek.com}
-    model-name: ${LLM_MODEL_NAME:deepseek-chat}
+    model-name: ${LLM_MODEL_NAME:deepseek-v4-flash}
     temperature: ${LLM_TEMPERATURE:0.8}
     max-tokens: ${LLM_MAX_TOKENS:2000}
     timeout: ${LLM_TIMEOUT:60}
+    # Embedding 配置(语义搜索)。推荐硅基流动(免费):https://api.siliconflow.cn/v1
+    # Key 可独立设置(硅基流动需要自己的 Key),未设置则复用主 api-key
+    embedding-api-key: ${LLM_EMBEDDING_API_KEY:#{null}}
+    embedding-base-url: ${LLM_EMBEDDING_URL:}
+    embedding-model-name: ${LLM_EMBEDDING_MODEL:BAAI/bge-large-zh-v1.5}
 
 # ===== dev profile 专属 =====
 ---

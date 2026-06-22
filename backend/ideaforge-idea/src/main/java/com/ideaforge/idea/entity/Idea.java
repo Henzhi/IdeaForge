@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ideaforge.idea.config.VectorTypeHandler;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -51,4 +52,8 @@ public class Idea {
 
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
+
+    /** pgvector 嵌入向量(语义搜索) */
+    @TableField(value = "embedding", typeHandler = VectorTypeHandler.class)
+    private String embedding;
 }

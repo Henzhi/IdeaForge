@@ -4,7 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.ideaforge.common.api.Result;
 import com.ideaforge.idea.entity.Tag;
 import com.ideaforge.idea.service.TagService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,10 +12,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/tags")
-@RequiredArgsConstructor
 public class TagController {
 
-    private final TagService tagService;
+    @Autowired
+    private TagService tagService;
 
     @GetMapping
     public Result<List<Tag>> list() {

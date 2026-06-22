@@ -17,8 +17,12 @@ public interface IdeaMapper extends BaseMapper<Idea> {
      * 与 idea.embedding 计算余弦距离(<=>),取最近 N 条。
      * 调用前需确保:1) idea 的 embedding 已生成;2) queryVector 格式为 '[x1,x2,...]'。
      */
-    @Select("SELECT * FROM idea WHERE user_id = #{userId} AND deleted_at IS NULL AND embedding IS NOT NULL ORDER BY embedding <=> #{queryVector}::vector LIMIT #{limit}")
-    List<Idea> semanticSearch(@Param("userId") Long userId,
-                              @Param("queryVector") String queryVector,
-                              @Param("limit") int limit);
+    /**
+     * 查出用户所有有 embedding 的想法(含 embedding 文本)。
+     * 语义搜索由 Java 层计算余弦相似度(IdeaService)。
+     */
+    @Select("SELECT id, user_id, content, category_id, is_archived, is_pinned, " +
+            "client_uuid, created_at, updated_at, deleted_at, embedding::text AS embedding " +
+            "FROM idea WHERE user_id = #{userId} AND deleted_at IS NULL AND embedding IS NOT NULL")
+    List<Idea> findAllWithEmbedding(@Param("userId") Long userId);
 }

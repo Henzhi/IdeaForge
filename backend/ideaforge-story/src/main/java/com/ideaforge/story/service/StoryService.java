@@ -4,23 +4,19 @@ import com.ideaforge.common.api.ErrorCode;
 import com.ideaforge.common.exception.BizException;
 import com.ideaforge.story.entity.Story;
 import com.ideaforge.story.mapper.StoryMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-/**
- * 故事服务。Sprint 4 完善:列表分页、版本管理、发布/归档。
- * 当前提供基础 CRUD 与状态更新,生成流程由 ideaforge-generation 模块触发。
- */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class StoryService {
 
-    private final StoryMapper storyMapper;
+    @Autowired
+    private StoryMapper storyMapper;
 
     @Transactional
     public Story createDraft(Long userId, String title) {
@@ -35,22 +31,16 @@ public class StoryService {
     @Transactional(readOnly = true)
     public Story getOwned(Long userId, Long id) {
         Story story = storyMapper.selectById(id);
-        if (story == null) {
-            throw new BizException(ErrorCode.STORY_NOT_FOUND);
-        }
-        if (!story.getUserId().equals(userId) || story.getDeletedAt() != null) {
+        if (story == null) throw new BizException(ErrorCode.STORY_NOT_FOUND);
+        if (!story.getUserId().equals(userId) || story.getDeletedAt() != null)
             throw new BizException(ErrorCode.FORBIDDEN);
-        }
         return story;
     }
 
-    /** 生成完成后由 generation 模块调用,写入正文并置为 completed */
     @Transactional
     public void markCompleted(Long storyId, String content, String summary) {
         Story story = storyMapper.selectById(storyId);
-        if (story == null) {
-            throw new BizException(ErrorCode.STORY_NOT_FOUND);
-        }
+        if (story == null) throw new BizException(ErrorCode.STORY_NOT_FOUND);
         story.setContent(content);
         story.setSummary(summary);
         story.setWordCount(content == null ? 0 : content.length());

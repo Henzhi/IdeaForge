@@ -6,22 +6,19 @@ import com.ideaforge.common.api.Result;
 import com.ideaforge.idea.dto.*;
 import com.ideaforge.idea.service.IdeaService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * 想法接口。对应 API 文档 /api/v1/ideas。
- */
 @Validated
 @RestController
 @RequestMapping("/api/v1/ideas")
-@RequiredArgsConstructor
 public class IdeaController {
 
-    private final IdeaService ideaService;
+    @Autowired
+    private IdeaService ideaService;
 
     @PostMapping
     public Result<IdeaResp> create(@RequestBody @Valid Map<String, Object> body) {
@@ -60,6 +57,18 @@ public class IdeaController {
             @RequestParam(defaultValue = "10") int limit) {
         var items = ideaService.semanticSearch(StpUtil.getLoginIdAsLong(), query, limit);
         return Result.ok(PageResponse.of(items, null));
+    }
+
+    @GetMapping("/debug-embeddings")
+    public Result<?> debugEmbeddings() {
+        int count = ideaService.debugEmbeddings(StpUtil.getLoginIdAsLong());
+        return Result.ok(Map.of("count", count));
+    }
+
+    @PostMapping("/generate-embeddings")
+    public Result<?> generateEmbeddings() {
+        int count = ideaService.generateEmbeddings(StpUtil.getLoginIdAsLong());
+        return Result.ok("已生成 " + count + " 条想法的向量");
     }
 
     @GetMapping("/{id}")

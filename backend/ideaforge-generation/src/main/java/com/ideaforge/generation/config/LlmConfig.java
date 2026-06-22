@@ -1,5 +1,6 @@
 package com.ideaforge.generation.config;
 
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,29 @@ public class LlmConfig {
                 .temperature(temperature)
                 .maxTokens(maxTokens)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
+                .build();
+    }
+
+    /**
+     * Embedding 模型(用于语义搜索)。
+     * OpenAI 兼容接口:硅基流动(BAAI/bge-large-zh-v1.5) / OpenAI(text-embedding-3-small)。
+     * Key 优先用 embedding-api-key,未设置时回退到主 api-key。
+     * 仅当 app.llm.embedding-base-url 非空时加载。
+     */
+    @Bean
+    @ConditionalOnProperty(name = "app.llm.embedding-base-url")
+    public OpenAiEmbeddingModel embeddingModel(
+            @Value("${app.llm.api-key}") String apiKey,
+            @Value("${app.llm.embedding-api-key:#{null}}") String embeddingApiKey,
+            @Value("${app.llm.embedding-base-url}") String embeddingBaseUrl,
+            @Value("${app.llm.embedding-model-name:BAAI/bge-large-zh-v1.5}") String embeddingModelName) {
+        String key = embeddingApiKey != null && !embeddingApiKey.isBlank() ? embeddingApiKey : apiKey;
+        log.info("初始化 Embedding: url={}, model={}", embeddingBaseUrl, embeddingModelName);
+        return OpenAiEmbeddingModel.builder()
+                .apiKey(key)
+                .baseUrl(embeddingBaseUrl)
+                .modelName(embeddingModelName)
+                .timeout(Duration.ofSeconds(30))
                 .build();
     }
 }

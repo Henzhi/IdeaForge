@@ -1,0 +1,74 @@
+# IdeaForge 后端本地开发中间件编排
+# 仅启动依赖(PG/Redis/RabbitMQ/MinIO),应用通过 IDE 或 java -jar 运行以便调试。
+# 生产完整编排见 docx/Docker部署设计.md
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16          # 必须使用带 pgvector 的专用镜像
+    container_name: ideaforge-pg-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ideaforge
+      POSTGRES_USER: ideaforge
+      POSTGRES_PASSWORD: ideaforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ideaforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ideaforge-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6380:6379"                     # 宿主机6380避开VMware vmnat占用6379
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ideaforge-mq-dev
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ideaforge
+      RABBITMQ_DEFAULT_PASS: ideaforge
+    ports:
+      - "5672:5672"
+      - "15672:15672"                      # 管理界面 http://localhost:15672
+    volumes:
+      - mq_dev_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: ideaforge-minio-dev
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ideaforge
+      MINIO_ROOT_PASSWORD: ideaforge123
+    ports:
+      - "9000:9000"
+      - "9001:9001"                        # 控制台 http://localhost:9001
+    volumes:
+      - minio_dev_data:/data
+
+volumes:
+  pg_dev_data:
+  redis_dev_data:
+  mq_dev_data:
+  minio_dev_data:

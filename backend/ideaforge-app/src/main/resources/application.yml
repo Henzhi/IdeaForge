@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: ideaforge
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # ===== 数据源 =====
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:ideaforge}
+    username: ${POSTGRES_USER:ideaforge}
+    password: ${POSTGRES_PASSWORD:ideaforge}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  # ===== JPA =====
+  jpa:
+    hibernate:
+      ddl-auto: validate          # 由 Flyway 管理表结构,只校验不自动建表
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc.time_zone: UTC
+    open-in-view: false
+
+  # ===== Flyway 迁移 =====
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true     # 已有库时基线化,不报错
+
+  # ===== Redis =====
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}           # 6380避开VMware vmnat占用6379
+      password: ${REDIS_PASSWORD:}
+      timeout: 5s
+
+  # ===== RabbitMQ =====
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:ideaforge}
+    password: ${RABBITMQ_PASSWORD:ideaforge}
+    listener:
+      simple:
+        acknowledge-mode: auto
+
+# ===== Sa-Token =====
+sa-token:
+  token-name: satoken
+  timeout: 2592000                # 30 天
+  active-timeout: 1800            # 30 分钟无操作过期
+  is-concurrent: true             # 允许多端登录
+  is-share: true                  # 多端共享同一 token
+  token-style: uuid
+  is-log: false
+
+# ===== Actuator =====
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# ===== 应用自定义配置 =====
+app:
+  aes-master-key: ${APP_AES_MASTER_KEY:dev-only-key-change-in-prod}
+
+# ===== dev profile 专属 =====
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+logging:
+  level:
+    root: WARN
+    com.ideaforge: INFO

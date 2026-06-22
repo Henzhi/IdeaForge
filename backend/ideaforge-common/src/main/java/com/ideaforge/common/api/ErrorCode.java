@@ -27,6 +27,7 @@ public enum ErrorCode {
     STORY_NOT_FOUND(1201, "故事不存在"),
     STORY_GENERATION_LIMIT(1202, "今日生成次数已达上限"),
     STORY_GENERATION_FAILED(1203, "故事生成失败"),
+    STORY_NOT_COMPLETED(1204, "故事未完成,无法发布"),
 
     // 系统 5xxx
     INTERNAL_ERROR(5000, "服务器内部错误"),

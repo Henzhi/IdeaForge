@@ -63,4 +63,8 @@ public class Story {
 
     @TableField("deleted_at")
     private LocalDateTime deletedAt;
+
+    /** 是否公开(公开故事广场可见) */
+    @TableField("is_public")
+    private Boolean isPublic = false;
 }

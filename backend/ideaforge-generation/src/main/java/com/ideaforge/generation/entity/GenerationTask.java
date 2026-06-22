@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ideaforge.generation.config.JsonbTypeHandler;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -38,10 +39,10 @@ public class GenerationTask {
     private String status = "queued";
 
     /** 输入想法ID列表及排序,JSON */
-    @TableField("input_ideas")
+    @TableField(value = "input_ideas", typeHandler = JsonbTypeHandler.class)
     private String inputIdeas;
 
-    @TableField("parameters")
+    @TableField(value = "parameters", typeHandler = JsonbTypeHandler.class)
     private String parameters;
 
     @TableField("prompt_text")

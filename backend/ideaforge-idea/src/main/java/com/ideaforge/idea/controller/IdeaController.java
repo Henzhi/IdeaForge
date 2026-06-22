@@ -46,6 +46,22 @@ public class IdeaController {
         return Result.ok(ideaService.list(StpUtil.getLoginIdAsLong(), cursor, limit, categoryId, archived));
     }
 
+    @GetMapping("/search")
+    public Result<PageResponse<IdeaResp>> search(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "20") int limit) {
+        var items = ideaService.search(StpUtil.getLoginIdAsLong(), q, limit);
+        return Result.ok(PageResponse.of(items, null));
+    }
+
+    @GetMapping("/semantic-search")
+    public Result<PageResponse<IdeaResp>> semanticSearch(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "10") int limit) {
+        var items = ideaService.semanticSearch(StpUtil.getLoginIdAsLong(), query, limit);
+        return Result.ok(PageResponse.of(items, null));
+    }
+
     @GetMapping("/{id}")
     public Result<IdeaResp> get(@PathVariable Long id) {
         return Result.ok(ideaService.get(StpUtil.getLoginIdAsLong(), id));

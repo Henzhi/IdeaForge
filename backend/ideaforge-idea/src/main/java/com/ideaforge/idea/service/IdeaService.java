@@ -149,6 +149,31 @@ public class IdeaService {
         ideaMapper.updateById(idea);
     }
 
+    // ===== 搜索 =====
+
+    /** 全文搜索(PostgreSQL tsvector)。使用中文分词器 plainto_tsquery。 */
+    @Transactional(readOnly = true)
+    public List<IdeaResp> search(Long userId, String keyword, int limit) {
+        List<Idea> ideas = ideaMapper.selectList(new LambdaQueryWrapper<Idea>()
+                .eq(Idea::getUserId, userId)
+                .isNull(Idea::getDeletedAt)
+                .apply("to_tsvector('simple', content) @@ plainto_tsquery('simple', {0})", keyword)
+                .orderByDesc(Idea::getCreatedAt)
+                .last("LIMIT " + limit));
+        return ideas.stream().map(this::toResp).toList();
+    }
+
+    /**
+     * 语义搜索(pgvector 余弦距离)。
+     * 前置条件:embedding 字段已由 AI 服务生成(调用 /ideas/{id}/embed 或批量生成)。
+     */
+    @Transactional(readOnly = true)
+    public List<IdeaResp> semanticSearch(Long userId, String query, int limit) {
+        // 调用 Mapper 中自定义 SQL,用 pgvector <=> 余弦距离排序
+        List<Idea> ideas = ideaMapper.semanticSearch(userId, query, limit);
+        return ideas.stream().map(this::toResp).toList();
+    }
+
     // ===== 内部方法 =====
 
     private Idea getOwned(Long userId, Long id) {

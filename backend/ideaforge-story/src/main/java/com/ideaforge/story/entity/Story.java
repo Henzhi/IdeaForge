@@ -1,10 +1,12 @@
 package com.ideaforge.story.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -12,59 +14,53 @@ import java.time.LocalDateTime;
  * 故事表实体。状态: draft / completed / archived。
  * embedding 字段留给向量检索,初期不填充。
  */
-@Entity
-@Table(name = "story", indexes = {
-    @Index(name = "idx_story_user_status", columnList = "user_id, status")
-})
 @Data
 @NoArgsConstructor
+@TableName("story")
 public class Story {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
 
-    @Column(nullable = false, length = 200)
+    @TableField("title")
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @TableField("content")
     private String content;
 
-    @Column(columnDefinition = "TEXT")
+    @TableField("summary")
     private String summary;
 
-    @Column(name = "word_count")
+    @TableField("word_count")
     private Integer wordCount = 0;
 
-    @Column(nullable = false, length = 20)
+    @TableField("status")
     private String status = "draft";
 
-    @Column(length = 30)
+    @TableField("style")
     private String style;
 
-    @Column(length = 30)
+    @TableField("tone")
     private String tone;
 
-    @Column(name = "length_preset", length = 20)
+    @TableField("length_preset")
     private String lengthPreset;
 
-    @Column(name = "cover_image_url")
+    @TableField("cover_image_url")
     private String coverImageUrl;
 
-    @Column(name = "view_count")
+    @TableField("view_count")
     private Integer viewCount = 0;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    @Column(name = "deleted_at")
+    @TableField("deleted_at")
     private LocalDateTime deletedAt;
 }

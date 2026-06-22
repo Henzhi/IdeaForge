@@ -1,40 +1,37 @@
 package com.ideaforge.user.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 /**
  * 第三方账号绑定表。provider: google/apple/wechat/qq/github。
  */
-@Entity
-@Table(name = "user_auth",
-    uniqueConstraints = @UniqueConstraint(name = "uk_provider_pid", columnNames = {"provider", "providerId"}),
-    indexes = @Index(name = "idx_user_auth_user", columnList = "user_id"))
 @Data
 @NoArgsConstructor
+@TableName("user_auth")
 public class UserAuth {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
 
-    @Column(nullable = false, length = 20)
+    @TableField("provider")
     private String provider;
 
-    @Column(name = "provider_id", nullable = false, length = 255)
+    @TableField("provider_id")
     private String providerId;
 
-    @Column(name = "access_token")
+    @TableField("access_token")
     private String accessToken;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

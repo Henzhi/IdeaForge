@@ -1,56 +1,50 @@
 package com.ideaforge.user.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 /**
  * 用户表实体。对应数据库 users 表(注意:表名用 users 避开 PG 保留字 user)。
  */
-@Entity
-@Table(name = "users", indexes = {
-    @Index(name = "idx_users_email", columnList = "email"),
-    @Index(name = "idx_users_phone", columnList = "phone")
-})
 @Data
 @NoArgsConstructor
+@TableName("users")
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(unique = true, nullable = false, length = 50)
+    @TableField("username")
     private String username;
 
-    @Column(length = 100)
+    @TableField("nickname")
     private String nickname;
 
-    @Column(name = "avatar_url")
+    @TableField("avatar_url")
     private String avatarUrl;
 
-    @Column(unique = true, length = 255)
+    @TableField("email")
     private String email;
 
-    @Column(unique = true, length = 20)
+    @TableField("phone")
     private String phone;
 
-    @Column(name = "password_hash", length = 255)
+    @TableField("password_hash")
     private String passwordHash;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @TableField(value = "created_at", fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @TableField(value = "updated_at", fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
     /** 1:正常 0:禁用 */
-    @Column(nullable = false)
+    @TableField("status")
     private Short status = 1;
 }

@@ -41,6 +41,12 @@
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
         </dependency>
+        <!-- MyBatis-Plus: common 模块的 MybatisPlusConfig/MetaHandler 需要 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
         <!-- BCrypt 密码哈希(仅引入 crypto 模块,非完整 security) -->
         <dependency>
             <groupId>org.springframework.security</groupId>

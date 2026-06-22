@@ -1,12 +1,13 @@
 package com.ideaforge.user.service;
 
 import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ideaforge.common.api.ErrorCode;
 import com.ideaforge.common.exception.BizException;
 import com.ideaforge.common.util.PasswordEncoder;
 import com.ideaforge.user.dto.*;
 import com.ideaforge.user.entity.User;
-import com.ideaforge.user.repository.UserRepository;
+import com.ideaforge.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -24,7 +25,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final StringRedisTemplate redisTemplate;
 
     private static final String CODE_KEY = "user:code:";
@@ -41,7 +42,9 @@ public class UserService {
     /** 手机号注册 */
     @Transactional
     public LoginResult register(RegisterReq req) {
-        if (userRepository.existsByPhone(req.getPhone())) {
+        Long existCount = userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, req.getPhone()));
+        if (existCount > 0) {
             throw new BizException(ErrorCode.USER_PHONE_EXISTS);
         }
         verifyCode(req.getPhone(), req.getCode());
@@ -51,15 +54,18 @@ public class UserService {
         user.setPhone(req.getPhone());
         user.setNickname("IdeaForge 用户");
         user.setPasswordHash(PasswordEncoder.encode(req.getPassword()));
-        user = userRepository.save(user);
+        userMapper.insert(user);
 
         return doLogin(user);
     }
 
     /** 手机号+密码登录 */
     public LoginResult loginByPhone(PhoneLoginReq req) {
-        User user = userRepository.findByPhone(req.getPhone())
-                .orElseThrow(() -> new BizException(ErrorCode.USER_NOT_FOUND));
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, req.getPhone()));
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
         if (user.getStatus() == 0) {
             throw new BizException(ErrorCode.USER_ACCOUNT_DISABLED);
         }
@@ -71,19 +77,23 @@ public class UserService {
 
     /** 获取当前用户资料 */
     public UserProfileResp getProfile(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BizException(ErrorCode.USER_NOT_FOUND));
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
         return toResp(user);
     }
 
     /** 修改当前用户资料 */
     @Transactional
     public UserProfileResp updateProfile(Long userId, UpdateProfileReq req) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BizException(ErrorCode.USER_NOT_FOUND));
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
         if (req.getNickname() != null) user.setNickname(req.getNickname());
         if (req.getAvatarUrl() != null) user.setAvatarUrl(req.getAvatarUrl());
-        userRepository.save(user);
+        userMapper.updateById(user);
         return toResp(user);
     }
 

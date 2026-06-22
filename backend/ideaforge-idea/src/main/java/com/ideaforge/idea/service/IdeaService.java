@@ -1,15 +1,16 @@
 package com.ideaforge.idea.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ideaforge.common.api.ErrorCode;
 import com.ideaforge.common.api.PageResponse;
 import com.ideaforge.common.exception.BizException;
 import com.ideaforge.idea.dto.*;
 import com.ideaforge.idea.entity.Idea;
-import com.ideaforge.idea.repository.IdeaRepository;
+import com.ideaforge.idea.mapper.IdeaMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,7 @@ public class IdeaService {
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_DATE_TIME;
 
-    private final IdeaRepository ideaRepository;
+    private final IdeaMapper ideaMapper;
 
     /** 创建单条想法 */
     @Transactional
@@ -39,16 +40,24 @@ public class IdeaService {
         idea.setContent(content);
         idea.setCategoryId(categoryId);
         idea.setClientUuid(clientUuid);
-        return toResp(ideaRepository.save(idea));
+        ideaMapper.insert(idea);
+        return toResp(idea);
     }
 
     /** 游标分页查询 */
     @Transactional(readOnly = true)
     public PageResponse<IdeaResp> list(Long userId, String cursor, int limit, Short categoryId, Boolean archived) {
         LocalDateTime cursorTime = parseCursor(cursor);
-        Page<Idea> page = ideaRepository.findByCursor(userId, cursorTime, categoryId, archived,
-                PageRequest.of(0, limit + 1));
-        List<Idea> content = page.getContent();
+        LambdaQueryWrapper<Idea> wrapper = new LambdaQueryWrapper<Idea>()
+                .eq(Idea::getUserId, userId)
+                .isNull(Idea::getDeletedAt)
+                .lt(cursorTime != null, Idea::getCreatedAt, cursorTime)
+                .eq(categoryId != null, Idea::getCategoryId, categoryId)
+                .eq(archived != null, Idea::getArchived, archived)
+                .orderByDesc(Idea::getPinned)
+                .orderByDesc(Idea::getCreatedAt);
+        Page<Idea> page = ideaMapper.selectPage(new Page<>(1, limit + 1), wrapper);
+        List<Idea> content = page.getRecords();
         boolean hasMore = content.size() > limit;
         List<Idea> items = hasMore ? content.subList(0, limit) : content;
         String nextCursor = hasMore ? items.get(items.size() - 1).getCreatedAt().format(ISO) : null;
@@ -63,14 +72,15 @@ public class IdeaService {
 
         if (req.getUpserts() != null) {
             for (IdeaUpsertReq item : req.getUpserts()) {
-                Idea idea = ideaRepository
-                        .findByUserIdAndClientUuidAndDeletedAtIsNull(userId, item.getClientUuid())
-                        .orElseGet(() -> {
-                            Idea fresh = new Idea();
-                            fresh.setUserId(userId);
-                            fresh.setClientUuid(item.getClientUuid());
-                            return fresh;
-                        });
+                Idea idea = ideaMapper.selectOne(new LambdaQueryWrapper<Idea>()
+                        .eq(Idea::getUserId, userId)
+                        .eq(Idea::getClientUuid, item.getClientUuid())
+                        .isNull(Idea::getDeletedAt));
+                if (idea == null) {
+                    idea = new Idea();
+                    idea.setUserId(userId);
+                    idea.setClientUuid(item.getClientUuid());
+                }
 
                 // Last-Write-Wins: 服务端时间更新者优先
                 if (idea.getId() != null && idea.getUpdatedAt() != null
@@ -85,13 +95,22 @@ public class IdeaService {
                 if (item.getUpdatedAt() != null) {
                     idea.setUpdatedAt(item.getUpdatedAt());
                 }
-                synced.add(toResp(ideaRepository.save(idea)));
+                if (idea.getId() == null) {
+                    ideaMapper.insert(idea);
+                } else {
+                    ideaMapper.updateById(idea);
+                }
+                synced.add(toResp(idea));
             }
         }
 
         if (req.getDeletes() != null) {
             for (String clientUuid : req.getDeletes()) {
-                ideaRepository.softDeleteByClientUuid(userId, clientUuid);
+                ideaMapper.update(null, new LambdaUpdateWrapper<Idea>()
+                        .eq(Idea::getUserId, userId)
+                        .eq(Idea::getClientUuid, clientUuid)
+                        .isNull(Idea::getDeletedAt)
+                        .set(Idea::getDeletedAt, LocalDateTime.now()));
             }
         }
         return new SyncResult(synced, conflicts);
@@ -109,7 +128,8 @@ public class IdeaService {
         Idea idea = getOwned(userId, id);
         if (content != null) idea.setContent(content);
         if (categoryId != null) idea.setCategoryId(categoryId);
-        return toResp(ideaRepository.save(idea));
+        ideaMapper.updateById(idea);
+        return toResp(idea);
     }
 
     /** 归档/置顶切换 */
@@ -118,7 +138,7 @@ public class IdeaService {
         Idea idea = getOwned(userId, id);
         if ("archived".equals(field)) idea.setArchived(value);
         else if ("pinned".equals(field)) idea.setPinned(value);
-        ideaRepository.save(idea);
+        ideaMapper.updateById(idea);
     }
 
     /** 软删除 */
@@ -126,14 +146,16 @@ public class IdeaService {
     public void delete(Long userId, Long id) {
         Idea idea = getOwned(userId, id);
         idea.setDeletedAt(LocalDateTime.now());
-        ideaRepository.save(idea);
+        ideaMapper.updateById(idea);
     }
 
     // ===== 内部方法 =====
 
     private Idea getOwned(Long userId, Long id) {
-        Idea idea = ideaRepository.findById(id)
-                .orElseThrow(() -> new BizException(ErrorCode.IDEA_NOT_FOUND));
+        Idea idea = ideaMapper.selectById(id);
+        if (idea == null) {
+            throw new BizException(ErrorCode.IDEA_NOT_FOUND);
+        }
         if (!idea.getUserId().equals(userId) || idea.getDeletedAt() != null) {
             throw new BizException(ErrorCode.IDEA_PERMISSION_DENIED);
         }

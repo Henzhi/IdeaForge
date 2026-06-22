@@ -1,9 +1,12 @@
 package com.ideaforge.generation.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -11,57 +14,51 @@ import java.time.LocalDateTime;
  * 生成任务表。状态: queued / processing / completed / failed。
  * 异步生成故事的全生命周期追踪。
  */
-@Entity
-@Table(name = "generation_task", indexes = {
-    @Index(name = "idx_task_user_status", columnList = "user_id, status"),
-    @Index(name = "idx_task_status_created", columnList = "status, created_at")
-})
 @Data
 @NoArgsConstructor
+@TableName("generation_task")
 public class GenerationTask {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
 
-    @Column(name = "story_id")
+    @TableField("story_id")
     private Long storyId;
 
-    @Column(name = "model_config_id")
+    @TableField("model_config_id")
     private Long modelConfigId;
 
-    @Column(name = "prompt_template_id")
+    @TableField("prompt_template_id")
     private Long promptTemplateId;
 
-    @Column(nullable = false, length = 20)
+    @TableField("status")
     private String status = "queued";
 
     /** 输入想法ID列表及排序,JSON */
-    @Column(name = "input_ideas", nullable = false, columnDefinition = "JSONB")
+    @TableField("input_ideas")
     private String inputIdeas;
 
-    @Column(columnDefinition = "JSONB")
+    @TableField("parameters")
     private String parameters;
 
-    @Column(name = "prompt_text", columnDefinition = "TEXT")
+    @TableField("prompt_text")
     private String promptText;
 
-    @Column(name = "error_message", columnDefinition = "TEXT")
+    @TableField("error_message")
     private String errorMessage;
 
-    @Column(name = "tokens_used")
+    @TableField("tokens_used")
     private Integer tokensUsed;
 
-    @Column(name = "started_at")
+    @TableField("started_at")
     private LocalDateTime startedAt;
 
-    @Column(name = "completed_at")
+    @TableField("completed_at")
     private LocalDateTime completedAt;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

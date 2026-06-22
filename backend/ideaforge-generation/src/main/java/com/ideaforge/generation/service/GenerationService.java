@@ -2,7 +2,7 @@ package com.ideaforge.generation.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ideaforge.generation.entity.GenerationTask;
-import com.ideaforge.generation.repository.GenerationTaskRepository;
+import com.ideaforge.generation.mapper.GenerationTaskMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -24,7 +24,7 @@ public class GenerationService {
 
     public static final String QUEUE = "story.generation.queue";
 
-    private final GenerationTaskRepository taskRepository;
+    private final GenerationTaskMapper generationTaskMapper;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
 
@@ -36,7 +36,7 @@ public class GenerationService {
             task.setInputIdeas(objectMapper.writeValueAsString(ideaIds));
             task.setParameters(objectMapper.writeValueAsString(
                     Map.of("style", style, "tone", tone, "length", length)));
-            task = taskRepository.save(task);
+            generationTaskMapper.insert(task);
 
             rabbitTemplate.convertAndSend(QUEUE, task.getId());
             log.info("生成任务已提交: taskId={}, ideaCount={}", task.getId(), ideaIds.size());

@@ -13,15 +13,17 @@ spring:
       maximum-pool-size: 20
       minimum-idle: 5
 
-  # ===== JPA =====
-  jpa:
-    hibernate:
-      ddl-auto: validate          # 由 Flyway 管理表结构,只校验不自动建表
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        jdbc.time_zone: UTC
-    open-in-view: false
+  # ===== MyBatis-Plus =====
+  # (JPA 配置已移除,改用 MyBatis-Plus)
+  mybatis-plus:
+    type-handlers-package: com.ideaforge.common.config  # 扫描 TimestampTzTypeHandler
+    configuration:
+      map-underscore-to-camel-case: true   # user_id → userId 自动驼峰映射
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # dev 打印 SQL
+    global-config:
+      db-config:
+        logic-delete-field: deletedAt      # 软删除字段(此处仅声明,实际用 deleted_at 手动判断)
+        logic-not-delete-value: 'null'
 
   # ===== Flyway 迁移 =====
   flyway:
@@ -77,18 +79,16 @@ spring:
   config:
     activate:
       on-profile: dev
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: true
+# MyBatis-Plus dev 配置(SQL 日志已在主配置开启)
 
 ---
 spring:
   config:
     activate:
       on-profile: prod
-  jpa:
-    show-sql: false
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl  # prod 关闭 SQL 日志
 logging:
   level:
     root: WARN

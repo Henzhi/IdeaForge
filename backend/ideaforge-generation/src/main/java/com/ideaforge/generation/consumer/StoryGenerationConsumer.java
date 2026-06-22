@@ -1,7 +1,7 @@
 package com.ideaforge.generation.consumer;
 
 import com.ideaforge.generation.entity.GenerationTask;
-import com.ideaforge.generation.repository.GenerationTaskRepository;
+import com.ideaforge.generation.mapper.GenerationTaskMapper;
 import com.ideaforge.generation.service.GenerationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +22,11 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class StoryGenerationConsumer {
 
-    private final GenerationTaskRepository taskRepository;
+    private final GenerationTaskMapper generationTaskMapper;
 
     @RabbitListener(queues = GenerationService.QUEUE)
     public void handle(Long taskId) {
-        GenerationTask task = taskRepository.findById(taskId).orElse(null);
+        GenerationTask task = generationTaskMapper.selectById(taskId);
         if (task == null) {
             log.warn("任务不存在: {}", taskId);
             return;
@@ -34,7 +34,7 @@ public class StoryGenerationConsumer {
 
         task.setStatus("processing");
         task.setStartedAt(LocalDateTime.now());
-        taskRepository.save(task);
+        generationTaskMapper.updateById(task);
 
         try {
             // TODO Sprint 3: 组装 prompt → 调用 LLM 流式生成 → Redis 发布 chunk
@@ -42,13 +42,13 @@ public class StoryGenerationConsumer {
             log.info("生成任务处理完成(占位): taskId={}", taskId);
             task.setStatus("completed");
             task.setCompletedAt(LocalDateTime.now());
-            taskRepository.save(task);
+            generationTaskMapper.updateById(task);
         } catch (Exception e) {
             log.error("生成任务失败: taskId={}", taskId, e);
             task.setStatus("failed");
             task.setErrorMessage(e.getMessage());
             task.setCompletedAt(LocalDateTime.now());
-            taskRepository.save(task);
+            generationTaskMapper.updateById(task);
         }
     }
 }

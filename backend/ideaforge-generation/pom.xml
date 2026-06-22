@@ -21,6 +21,16 @@
             <artifactId>ideaforge-story</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.ideaforge</groupId>
+            <artifactId>ideaforge-idea</artifactId>
+        </dependency>
+        <!-- LangChain4j: OpenAI 兼容接口(支持 DeepSeek/Qwen/Moonshot/OpenAI) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>

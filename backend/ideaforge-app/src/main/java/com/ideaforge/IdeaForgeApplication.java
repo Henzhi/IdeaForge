@@ -15,5 +15,6 @@ public class IdeaForgeApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(IdeaForgeApplication.class, args);
+        System.out.println("IdeaForgeApplication 启动成功！！");
     }
 }

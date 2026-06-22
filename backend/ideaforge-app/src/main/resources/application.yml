@@ -3,10 +3,11 @@ spring:
     name: ideaforge
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  mandatory-file-encoding: UTF-8
 
   # ===== 数据源 =====
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:ideaforge}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:ideaforge}?charSet=UTF-8
     username: ${POSTGRES_USER:ideaforge}
     password: ${POSTGRES_PASSWORD:ideaforge}
     hikari:
@@ -59,6 +60,14 @@ sa-token:
   token-style: uuid
   is-log: false
 
+# ===== Servlet 编码(Windows 必须强制 UTF-8) =====
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
 # ===== Actuator =====
 management:
   endpoints:
@@ -72,6 +81,17 @@ management:
 # ===== 应用自定义配置 =====
 app:
   aes-master-key: ${APP_AES_MASTER_KEY:dev-only-key-change-in-prod}
+  # LLM 配置(OpenAI 兼容接口)。留空则不加载 LLM Bean,生成接口会返回未配置错误。
+  # DeepSeek: base-url=https://api.deepseek.com  model-name=deepseek-chat
+  # Qwen:     base-url=https://dashscope.aliyuncs.com/compatible-mode/v1  model-name=qwen-plus
+  # OpenAI:   base-url=https://api.openai.com/v1  model-name=gpt-4o-mini
+  llm:
+    api-key: ${LLM_API_KEY:}
+    base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+    model-name: ${LLM_MODEL_NAME:deepseek-chat}
+    temperature: ${LLM_TEMPERATURE:0.8}
+    max-tokens: ${LLM_MAX_TOKENS:2000}
+    timeout: ${LLM_TIMEOUT:60}
 
 # ===== dev profile 专属 =====
 ---

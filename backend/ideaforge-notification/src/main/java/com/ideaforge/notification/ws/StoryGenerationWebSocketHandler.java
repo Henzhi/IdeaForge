@@ -66,6 +66,7 @@ public class StoryGenerationWebSocketHandler extends TextWebSocketHandler {
     /**
      * 由 Redis Pub/Sub 监听器调用:收到 chunk 后只推给本副本持有的 session。
      * payload 为推送给客户端的完整 JSON 消息。
+     * 注意:Redis 多线程回调,必须同步 session 发送避免 TEXT_PARTIAL_WRITING。
      */
     public void onChunkFromRedis(String userId, String payload) {
         Set<WebSocketSession> sessions = sessionMap.get(userId);
@@ -74,8 +75,10 @@ public class StoryGenerationWebSocketHandler extends TextWebSocketHandler {
         for (WebSocketSession s : sessions) {
             if (s.isOpen()) {
                 try {
-                    s.sendMessage(message);
-                } catch (IOException e) {
+                    synchronized (s) {
+                        s.sendMessage(message);
+                    }
+                } catch (IOException | IllegalStateException e) {
                     log.warn("推送 WebSocket 消息失败: sessionId={}", s.getId(), e);
                 }
             }

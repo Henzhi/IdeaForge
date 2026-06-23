@@ -29,11 +29,12 @@ export class HttpClient {
     return headers;
   }
 
-  static async get<T>(path: string, params?: Record<string, Object>): Promise<T> {
+  static async get<T>(path: string, params?: Object): Promise<T> {
     let url = BASE_URL + path;
     if (params) {
-      const query = Object.keys(params)
-        .map(k => `${k}=${encodeURIComponent(String(params[k]))}`)
+      const paramsObj = params as Record<string, Object>;
+      const query = Object.keys(paramsObj)
+        .map(k => `${k}=${encodeURIComponent(String(paramsObj[k]))}`)
         .join('&');
       url += '?' + query;
     }
@@ -48,6 +49,19 @@ export class HttpClient {
   static async put<T>(path: string, body?: Object): Promise<T> {
     return HttpClient.request<T>(http.RequestMethod.PUT, BASE_URL + path,
       body ? JSON.stringify(body) : undefined);
+  }
+
+  /** PUT 方法，参数拼接为 URL 查询字符串（适用于 @RequestParam 风格的后端） */
+  static async putQuery<T>(path: string, params?: Object): Promise<T> {
+    let url = BASE_URL + path;
+    if (params) {
+      const paramsObj = params as Record<string, Object>;
+      const query = Object.keys(paramsObj)
+        .map(k => `${k}=${encodeURIComponent(String(paramsObj[k]))}`)
+        .join('&');
+      url += '?' + query;
+    }
+    return HttpClient.request<T>(http.RequestMethod.PUT, url);
   }
 
   static async delete<T>(path: string): Promise<T> {

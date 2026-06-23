@@ -61,19 +61,19 @@ public class StoryGenerationConsumer {
             streamingChatModel.generate(
                     List.of(UserMessage.from(task.getPromptText())),
                     new StreamingResponseHandler<>() {
-                        @Override public void onNext(String token) { fullContent.append(token); publishChunk(channel, task.getUserId(), taskId, token, "processing"); }
+                        @Override public void onNext(String token) { fullContent.append(token); publishChunk(channel, task.getUserId(), taskId, token, "chunk"); }
                         @Override public void onComplete(Response<AiMessage> response) {
                             String content = fullContent.toString();
                             String summary = content.length() > 50 ? content.substring(0, 50) + "..." : content;
                             storyService.markCompleted(task.getStoryId(), content, summary);
-                            publishChunk(channel, task.getUserId(), taskId, null, "completed");
+                            publishDone(channel, task.getUserId(), task.getStoryId(), content.length());
                             task.setStatus("completed");
                             task.setCompletedAt(LocalDateTime.now());
                             if (response.tokenUsage() != null) task.setTokensUsed((int) response.tokenUsage().totalTokenCount());
                             generationTaskMapper.updateById(task);
                             log.info("流式生成完成: taskId={}, 字数={}", taskId, content.length());
                         }
-                        @Override public void onError(Throwable error) { log.error("LLM 生成出错: taskId={}", taskId, error); publishChunk(channel, task.getUserId(), taskId, null, "failed"); failTask(task, error.getMessage()); }
+                        @Override public void onError(Throwable error) { log.error("LLM 生成出错: taskId={}", taskId, error); publishError(channel, task.getUserId(), error.getMessage()); failTask(task, error.getMessage()); }
                     });
         } catch (Exception e) {
             log.error("生成任务异常: taskId={}", taskId, e);
@@ -82,11 +82,30 @@ public class StoryGenerationConsumer {
         }
     }
 
-    private void publishChunk(String channel, Long userId, Long taskId, String chunk, String status) {
+    /** 推送流式文本块到 Redis，格式与前端 WsMessage 对齐: {"type":"chunk","data":"..."} */
+    private void publishChunk(String channel, Long userId, Long taskId, String chunk, String type) {
         try {
-            redisTemplate.convertAndSend(channel, objectMapper.writeValueAsString(Map.of(
-                    "type", "story_generation_chunk", "userId", userId, "taskId", taskId, "chunk", chunk == null ? "" : chunk, "status", status)));
+            if ("chunk".equals(type)) {
+                redisTemplate.convertAndSend(channel,
+                    objectMapper.writeValueAsString(Map.of("type", "chunk", "data", chunk == null ? "" : chunk, "userId", userId)));
+            }
         } catch (Exception e) { log.warn("发布 chunk 到 Redis 失败: taskId={}", taskId, e); }
+    }
+
+    /** 推送完成事件: {"type":"done","storyId":...,"wordCount":...} */
+    private void publishDone(String channel, Long userId, Long storyId, int wordCount) {
+        try {
+            redisTemplate.convertAndSend(channel,
+                objectMapper.writeValueAsString(Map.of("type", "done", "storyId", storyId, "wordCount", wordCount, "userId", userId)));
+        } catch (Exception e) { log.warn("发布 done 到 Redis 失败: storyId={}", storyId, e); }
+    }
+
+    /** 推送错误事件 */
+    private void publishError(String channel, Long userId, String errorMsg) {
+        try {
+            redisTemplate.convertAndSend(channel,
+                objectMapper.writeValueAsString(Map.of("type", "error", "message", errorMsg, "userId", userId)));
+        } catch (Exception e) { log.warn("发布 error 到 Redis 失败", e); }
     }
 
     private void failTask(GenerationTask task, String error) {

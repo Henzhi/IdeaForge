@@ -35,6 +35,7 @@
         <langchain4j.version>0.31.0</langchain4j.version>
         <minio.version>8.5.11</minio.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
     <dependencyManagement>

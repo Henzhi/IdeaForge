@@ -78,6 +78,15 @@ management:
     health:
       show-details: when-authorized
 
+# ===== SpringDoc OpenAPI =====
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html       # 访问地址
+    tags-sorter: alpha           # 按字母排序标签
+  api-docs:
+    path: /v3/api-docs
+  show-actuator: true            # 显示 actuator 端点
+
 # ===== 应用自定义配置 =====
 app:
   aes-master-key: ${APP_AES_MASTER_KEY:dev-only-key-change-in-prod}

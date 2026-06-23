@@ -2,15 +2,19 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "IdeaForge 鸿蒙客户端"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "IdeaForge 主入口"
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "IdeaForge"
+    },
+    {
+      "name": "internet_reason",
+      "value": "用于连接 IdeaForge 服务器，同步想法和生成故事"
     }
   ]
 }
